@@ -179,12 +179,17 @@ def tune_random_forest(
     n_estimators_grid: Iterable[int] = range(10, 101, 10),
     depth_grid: Iterable[int] = range(1, 11),
     random_state: int = RANDOM_STATE,
+    n_jobs: int = -1,
 ) -> SearchResult:
     """Full grid, recording every cell.
 
-    The original submission kept only the winning configuration, which made it
-    impossible to say how sensitive accuracy was to `n_estimators`. Recording
-    the whole grid is what lets the write-up make claims about the search.
+    The first version of this project kept only the winning configuration,
+    which made it impossible to say afterwards how much `n_estimators` actually
+    mattered. Keeping the whole grid is what lets the write up say anything
+    about the shape of the search rather than just its winner.
+
+    `n_jobs` only parallelises tree building inside each fit, so results stay
+    identical for a given `random_state`.
     """
     rows = []
     best = (-1.0, None, None)
@@ -192,7 +197,10 @@ def tune_random_forest(
     for n_estimators in n_estimators_grid:
         for depth in depth_grid:
             model = RandomForestClassifier(
-                random_state=random_state, n_estimators=n_estimators, max_depth=depth
+                random_state=random_state,
+                n_estimators=n_estimators,
+                max_depth=depth,
+                n_jobs=n_jobs,
             )
             model.fit(splits.X_train, splits.y_train)
             acc = accuracy_score(splits.y_valid, model.predict(splits.X_valid))
@@ -240,18 +248,20 @@ def fit_logistic(
 # --------------------------------------------------------------------------
 
 
-def evaluate(model, X, y_true) -> dict[str, float]:
-    """Test-set metrics.
+def evaluate(model, X, y_true) -> dict[str, Any]:
+    """Metrics for one fitted model on one set of rows.
 
-    Accuracy alone is misleading on a ~69/31 split, so this also reports
-    per-class precision/recall/F1 and two threshold-independent scores.
-    ROC-AUC and average precision are computed from predicted probabilities,
-    which is why a model without `predict_proba` returns NaN for them rather
-    than a silently wrong number.
+    Accuracy alone is misleading on a 69/31 split, so this also reports
+    precision, recall and F1 for each class separately, plus two scores that
+    do not depend on the 0.5 decision threshold. ROC AUC and average precision
+    need predicted probabilities, so a model without `predict_proba` gets NaN
+    for those rather than a quietly wrong number.
+
+    Returns floats for the rates and ints for the four confusion matrix cells.
     """
     y_pred = model.predict(X)
 
-    metrics: dict[str, float] = {
+    metrics: dict[str, Any] = {
         "accuracy": accuracy_score(y_true, y_pred),
         "precision_ultra": precision_score(y_true, y_pred, pos_label=1, zero_division=0),
         "recall_ultra": recall_score(y_true, y_pred, pos_label=1, zero_division=0),
@@ -272,8 +282,12 @@ def evaluate(model, X, y_true) -> dict[str, float]:
 
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     metrics.update(
-        {"true_negatives": tn, "false_positives": fp,
-         "false_negatives": fn, "true_positives": tp}
+        {
+            "true_negatives": int(tn),
+            "false_positives": int(fp),
+            "false_negatives": int(fn),
+            "true_positives": int(tp),
+        }
     )
 
     return metrics

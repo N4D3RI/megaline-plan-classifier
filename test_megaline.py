@@ -183,6 +183,25 @@ def test_random_forest_search_records_full_grid(synthetic_df):
     assert r.best_valid_accuracy == r.trials["valid_accuracy"].max()
 
 
+def test_forest_results_do_not_depend_on_n_jobs(synthetic_df):
+    """Parallelism is a speed knob, not a source of drift."""
+    s = mg.make_splits(synthetic_df)
+    serial = mg.tune_random_forest(s, n_estimators_grid=(20,), depth_grid=(3, 5), n_jobs=1)
+    parallel = mg.tune_random_forest(s, n_estimators_grid=(20,), depth_grid=(3, 5), n_jobs=-1)
+
+    assert serial.best_params == parallel.best_params
+    assert serial.best_valid_accuracy == pytest.approx(parallel.best_valid_accuracy)
+
+
+def test_confusion_matrix_cells_are_ints():
+    """These are counts; returning numpy ints leaks into JSON/CSV output."""
+    y_true = pd.Series([0, 1, 0, 1])
+    m = mg.evaluate(_FixedPredictor([0, 1, 1, 1]), pd.DataFrame(index=range(4)), y_true)
+
+    for key in ("true_negatives", "false_positives", "false_negatives", "true_positives"):
+        assert type(m[key]) is int
+
+
 def test_search_beats_baseline_on_learnable_data(synthetic_df):
     s = mg.make_splits(synthetic_df)
     r = mg.tune_random_forest(s, n_estimators_grid=(20,), depth_grid=(3, 5))
