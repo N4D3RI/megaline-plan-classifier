@@ -74,7 +74,7 @@ The depth sweep shows the underfit → optimum → overfit curve clearly:
 |---|---|---|---|---|---|---|---|---|---|---|
 | Validation accuracy | .7589 | .7838 | .8040 | .8040 | **.8165** | .8025 | .8072 | .8056 | .8118 | .8056 |
 
-Depth 1–2 underfits. Accuracy peaks at depth 5, then degrades and oscillates as the tree starts memorizing the training set.
+Depth 1–2 clearly underfits. From depth 3 onward accuracy sits in a narrow .8025–.8165 band, peaking at depth 5 — the differences between those depths are small enough that they are within noise for a 643-row validation set.
 
 ### Final model on the test set
 
@@ -91,15 +91,15 @@ Depth 1–2 underfits. Accuracy peaks at depth 5, then degrades and oscillates a
 
 - **Random Forest won**, at 0.8320 validation / 0.8072 test accuracy. Averaging over many trees suppresses the variance that makes a single deep tree unstable.
 - **Logistic Regression was the weakest model by a wide margin** (0.7045 — barely above the 0.6936 baseline). The decision boundary between the plans is non-linear, so a linear model has almost nothing to work with here. This is the clearest signal in the project that model choice has to follow the shape of the data.
-- **The best forest was the *smallest* one tested** (`n_estimators=10`). Across the 100-point grid, more trees did not buy more accuracy — the gains flatten almost immediately, and the extra training cost is wasted. Depth mattered far more than ensemble size.
-- **Tree depth is the dominant hyperparameter.** The depth sweep moves accuracy by nearly 6 points (0.7589 → 0.8165); everything else moves it by less.
+- **The best forest used the fewest trees in the grid** (`n_estimators=10`). Adding trees beyond that did not improve validation accuracy, so the extra training cost would have bought nothing on this dataset.
+- **Depth is the hyperparameter that moves the single decision tree.** The sweep spans nearly 6 points (0.7589 → 0.8165) — shallow trees underfit, and accuracy stops improving once depth passes 5.
 - **The sanity check is what makes the headline number meaningful.** On a 69/31 split, a model that predicts "Smart" every single time scores 0.6936. Reporting 0.8072 without that comparison would overstate the model's value; the honest claim is that it adds **11.4 points over doing nothing**.
 
 ## Conclusion
 
 The Random Forest meets Megaline's 0.75 requirement with room to spare and clearly beats the majority-class baseline, so it is learning genuine structure in subscriber behavior rather than exploiting the class imbalance. It is fit for use as a plan-recommendation model.
 
-The most useful next steps would be reporting precision/recall per class rather than accuracy alone — since the business cost of misrecommending Ultra is not the same as misrecommending Smart — and cross-validation in place of a single validation split to tighten the hyperparameter estimates.
+The most useful next steps would be reporting precision/recall per class rather than accuracy alone — since the business cost of misrecommending Ultra is not the same as misrecommending Smart — and cross-validation in place of a single validation split, which would tighten the hyperparameter estimates and show whether the gaps between the top configurations are real or noise.
 
 ---
 
