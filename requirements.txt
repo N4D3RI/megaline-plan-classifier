@@ -1,4 +1,12 @@
+# analysis
 pandas>=1.5
 numpy>=1.23
 scikit-learn>=1.2
+matplotlib>=3.6
 jupyter>=1.0
+
+# report generation (DataFrame.to_markdown)
+tabulate>=0.9
+
+# tests
+pytest>=7.0
